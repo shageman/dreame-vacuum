@@ -24,7 +24,7 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady, HomeAssistantError
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
-from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import entity_registry as er, issue_registry as ir
 from homeassistant.helpers.entity import generate_entity_id
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
@@ -477,6 +477,8 @@ class DreameVacuumDataUpdateCoordinator(DataUpdateCoordinator[DreameVacuumDevice
 
                 if description:
                     notification = f"### {description}"
+                    if self._create_consumable_issue(consumable, description):
+                        notification = f"{notification}\n\n[Reset the counter](/config/repairs) once you have done this."
                     image = self._device.consumable_image(consumable)
                     if image:
                         notification = f"{notification}\n![image](data:image/png;base64,{image})"
@@ -494,6 +496,43 @@ class DreameVacuumDataUpdateCoordinator(DataUpdateCoordinator[DreameVacuumDevice
                     )
             else:
                 self._remove_persistent_notification(notification_id)
+                self._delete_consumable_issue(consumable)
+
+    def _consumable_issue_id(self, consumable) -> str:
+        return f"{self._device.mac}_consumable_{consumable}"
+
+    def _create_consumable_issue(self, consumable, description) -> bool:
+        """Offer a Repairs fix that resets the consumable's counter. Returns whether one was created."""
+        if not (
+            self._notify is True or (isinstance(self._notify, list) and NOTIFICATION_ID_CONSUMABLE in self._notify)
+        ):
+            return False
+        title, _, message = description.partition("\n")
+        self.hass.loop.call_soon_threadsafe(
+            functools.partial(
+                ir.async_create_issue,
+                self.hass,
+                DOMAIN,
+                self._consumable_issue_id(consumable),
+                is_fixable=True,
+                is_persistent=False,
+                severity=ir.IssueSeverity.WARNING,
+                translation_key="consumable",
+                translation_placeholders={"name": self._device.name, "title": title},
+                data={
+                    "entry_id": self._entry.entry_id,
+                    "consumable": consumable,
+                    "title": title,
+                    "message": message or title,
+                },
+            )
+        )
+        return True
+
+    def _delete_consumable_issue(self, consumable) -> None:
+        self.hass.loop.call_soon_threadsafe(
+            ir.async_delete_issue, self.hass, DOMAIN, self._consumable_issue_id(consumable)
+        )
 
     def _create_persistent_notification(self, content, notification_id) -> None:
         if not self._device.disconnected and self._device.device_connected and self._notify:

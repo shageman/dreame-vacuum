@@ -1313,7 +1313,7 @@
           "large_particles": "Large Particles",
           "dried_stain": "Stains",
           "food_bowl": "Food Bowl",
-          "pet_bed": "Pet Bed",          
+          "pet_bed": "Pet Bed",
           "cleaned_stain": "Stains",
           "skipped_uncleanable_stain": "Stains",
           "cleaned_dried_stain": "Stains",
@@ -3137,6 +3137,23 @@
     },
     "zone_too_small": {
       "message": "Zone {zone} is smaller than the minimum zone size ({width}, {height})"
+    }
+  },
+  "issues": {
+    "consumable": {
+      "title": "{name}: {title}",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "{title}",
+            "description": "{message}\n\nSelect **Submit** once you have done this to reset the counter to 100%."
+          }
+        },
+        "abort": {
+          "not_available": "The vacuum is not available right now. Try again once it is connected.",
+          "reset_failed": "The vacuum didn't accept the reset. Try again later."
+        }
+      }
     }
   }
 }
